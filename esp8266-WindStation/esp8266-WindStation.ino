@@ -30,7 +30,7 @@ int debouncing_time = 10000;                                  // time in microse
 unsigned long last_micros = 0;
 volatile int windimpulse = 0;
 
-#define VERSION         "v1.92 OTA"
+#define VERSION         "v1.93 OTA"
 #define VERSIONINFO     "\n\n----------------- GAYIK Wind Station v1.92 OTA -----------------"
 #define NameAP      "WindStationAP"
 #define PasswordAP  "87654321"
@@ -58,8 +58,8 @@ static String WindyAppID = "YOUR_ID";
 
 //#define MOSFETPIN       15                                   // Experemental!!! GPIO15 (D8 for NodeMcu). MosFET's gate pin for power supply sensors, off for current drain minimize. Not connect this GPIO directly to sensors you burning it! The maximum source current of GPIO is about 12mA
 
-#define BUTTON          4                                    // optional, GPIO4 for Witty Cloud. GPIO0/D3 for NodeMcu (Flash) - not work with deepsleep, set 4!
-#define LED             2                                    // GPIO2 for Witty Cloud. GPIO16/D0 for NodeMcu - not work with deepsleep, set 2!
+#define BUTTON          D3                                    // optional, GPIO4 for Witty Cloud. GPIO0/D3 for NodeMcu (Flash) - not work with deepsleep, set 4!
+#define LED             D4                                    // GPIO2 for Witty Cloud. GPIO16/D0 for NodeMcu - not work with deepsleep, set 2!
 #define DHTPIN          14                                   // GPIO14 (D5 for NodeMcu)
 #define WINDPIN         5                                    // GPIO5 (D1 for NodeMcu)
 
@@ -364,7 +364,6 @@ void setup() {
   pinMode(LED, OUTPUT);
   pinMode(BUTTON, INPUT);
   pinMode(WINDPIN, INPUT_PULLUP);
-  digitalWrite(LED, HIGH);
   
   firstRun = true;
   btn_timer.attach(0.05, button);
@@ -479,14 +478,13 @@ void setup() {
       mqttClient.subscribe(MQTT_TOPICm);
       mqttClient.subscribe(MQTT_TOPICo);
       blinkLED(LED, 40, 8);
-      digitalWrite(LED, LOW);
       mqttClient.publish("start", ("Version:" + String(VERSION)).c_str());
+      blinkLED(LED,1000,5);
     }
     else {
       Serial.println(" FAILED!");
       Serial.println("\n----------------------------------------------------------------");
       Serial.println();
-      digitalWrite(LED, HIGH);
     }
   }
   else {
@@ -520,11 +518,7 @@ void button() {
     count_btn++;
   } 
   else {
-    if (count_btn > 1 && count_btn <= 40) {   
-      digitalWrite(LED, !digitalRead(LED));
-      sendStatus = true;
-    } 
-    else if (count_btn > 40){
+    if (count_btn > 400){
       Serial.println("\n\nESP8266 Rebooting . . . . . . . . Please Wait"); 
       errors_count = 100;
     } 
@@ -555,7 +549,7 @@ void checkStatus() {
     sendStatus = false;
   }
   if (errors_count >= 100) {
-    blinkLED(LED, 400, 4);
+    blinkLED(LED, 200, 5);
     ESP.restart();
     delay(500);
   }
@@ -567,12 +561,6 @@ void getSensors() {
   Serial.print("DHT read . . . . . . . . . . . . . . . . . ");  
   dhtH = dht.readHumidity();
   dhtT = dht.readTemperature();
-  if(digitalRead(LED) == LOW)  {
-    blinkLED(LED, 100, 1);
-  } else {
-    blinkLED(LED, 100, 1);
-    digitalWrite(LED, HIGH);
-  }
   if (isnan(dhtH) || isnan(dhtT)) {
     if (mqttClient.connected())
       mqttClient.publish("debug", "DHT READ ERROR");
@@ -592,13 +580,14 @@ void getSensors() {
 #endif     
   
   if (meterWind > 0) { //already made measurement wind power
-    pubString = "{\"Min\": "+String(getKnots(WindMin), 2)+", "+"\"Avr\": "+String(getKnots(WindMin), 2)+", "+"\"Max\": "+String(getKnots(WindMin), 2)+", "+"\"Dir\": "+String(CalDirection) + "}";
+    pubString = "{\"Min\": "+String(getKnots(WindMin), 2)+", "+"\"Avr\": "+String(getKnots(WindAvr), 2)+", "+"\"Max\": "+String(getKnots(WindMax), 2)+", "+"\"Dir\": "+String(CalDirection) + "}";
     pubString.toCharArray(msg_buff, pubString.length()+1);
     if (mqttClient.connected())
       mqttClient.publish("wind", msg_buff);
-      Serial.print(" Wind Min: " + String(getKnots(WindMin), 2) + " Avr: " + String(getKnots(WindMin), 2) + " Max: " + String(getKnots(WindMin), 2) + " Dir: " + String(CalDirection)+ " (offset:" + String(vaneOffset) + ") ");
+      Serial.print(" Wind Min: " + String(getKnots(WindMin), 2) + " Avr: " + String(getKnots(WindAvr), 2) + " Max: " + String(getKnots(WindMax), 2) + " Dir: " + String(CalDirection)+ " (offset:" + String(vaneOffset) + ") ");
   }
   sensorReport = false;
+  blinkLED(LED,200,1);
 }
 
 void timedTasks() {

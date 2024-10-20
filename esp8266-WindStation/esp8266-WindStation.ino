@@ -31,15 +31,14 @@ unsigned long last_micros = 0;
 volatile int windimpulse = 0;
 
 #define VERSION         "v1.93 OTA"
-#define VERSIONINFO     "\n\n----------------- GAYIK Wind Station v1.92 OTA -----------------"
+#define VERSIONINFO     "\n\n----------------- GAYIK Wind Station v1.93 OTA -----------------"
 #define NameAP      "WindStationAP"
 #define PasswordAP  "87654321"
 #define FirmwareURL "http://gayikweatherstation.blob.core.windows.net/firmware/esp8266-WindStation.ino.generic.bin"   //URL of firmware file for http OTA update by secret MQTT command "flash" 
 
 #define USE_Windguru
 
-//#define USE_Windy_com
-//static String WindyComApiKey = "YOUR_KEY";
+#define USE_Windy_com
 
 //#define USE_Windy_app
 static String WindyAppSecret = "YOUR_SECRET";
@@ -461,6 +460,7 @@ void setup() {
     Serial.print("macAddress is: "); Serial.println(WiFi.macAddress());
     Serial.print("Connecting to ");Serial.print(mqtt_server);Serial.print(" Broker . .");
     delay(500);
+    blinkLED(LED, 200, 2);
     mqttClient.setServer(mqtt_server, atoi(mqtt_port));
     mqttClient.setSocketTimeout(70);
     mqttClient.setKeepAlive(70);
@@ -471,13 +471,13 @@ void setup() {
       delay(1000);
     }
     if(mqttClient.connected()) {
+      blinkLED(LED, 200, 3);
       Serial.println(" DONE");
       Serial.println("\n----------------------------  Logs  ----------------------------");
       Serial.println();
       mqttClient.subscribe(MQTT_TOPIC);
       mqttClient.subscribe(MQTT_TOPICm);
       mqttClient.subscribe(MQTT_TOPICo);
-      blinkLED(LED, 40, 8);
       mqttClient.publish("start", ("Version:" + String(VERSION)).c_str());
       blinkLED(LED,1000,5);
     }
@@ -728,8 +728,13 @@ bool SendToWindyCom() { // send info to http://stations.windy.com/stations
   String getData, Link;
   unsigned long time;
   
+  if (String(windy_key).isEmpty()) {
+    Serial.println("Windy API key is empty, skipping data send.");
+    return true;
+  }
+  
   if (WiFi.status() == WL_CONNECTED) { //Check WiFi connection status
-     Link = "http://stations.windy.com/pws/update/" + String(windy_key) + "?name=windsurf&";
+     Link = "http://stations.windy.com/pws/update/" + String(windy_key) + "?";
     
      //wind speed during interval (knots)
      if (meterWind > 0)
